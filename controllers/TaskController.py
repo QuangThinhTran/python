@@ -1,4 +1,4 @@
-from database import Database
+from config.database import Database
 
 
 class TaskController:

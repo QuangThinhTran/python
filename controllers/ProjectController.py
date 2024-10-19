@@ -1,4 +1,4 @@
-from database import Database
+from config.database import Database
 
 
 class ProjectController:
@@ -25,4 +25,13 @@ class ProjectController:
 
     def get_projects(self):
         self.db.cursor.execute('SELECT * FROM projects')
+        return self.db.cursor.fetchall()
+
+    def get_tasks_for_project(self, project_name):
+        self.db.cursor.execute('''
+            SELECT t.name, e.name as employee_name, t.status, t.description
+            FROM tasks t
+            JOIN employees e ON t.employee_id = e.id
+            WHERE t.project_id = (SELECT id FROM projects WHERE name = ?)
+        ''', (project_name,))
         return self.db.cursor.fetchall()

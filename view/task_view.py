@@ -1,13 +1,14 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from tkinter import font as tkFont
 from tkcalendar import DateEntry
 from datetime import datetime
 
+from config.util import STATUSES, Util
 from controllers.TaskController import TaskController
 from controllers.ProjectController import ProjectController
 from controllers.EmployeeController import EmployeeController
 
-TASK_STATUSES = ["Chưa bắt đầu", "Đang thực hiện", "Đã hoàn thành"]
 
 class TaskView(tk.Frame):
     def __init__(self, root):
@@ -16,42 +17,44 @@ class TaskView(tk.Frame):
         self.task_controller = TaskController()
         self.project_controller = ProjectController()
         self.employee_controller = EmployeeController()
+        self.util = Util(root)
+
+        self.custom_font = tkFont.Font(family="Helvetica", size=10)
+
         self.setup_task_tab()
 
     def setup_task_tab(self):
-        style = ttk.Style()
-        style.configure("TaskFrame.TFrame", background="#e6f7ff")
+        self.task_frame = ttk.Frame(self.root, padding=(20, 20), relief=tk.RAISED)
+        self.task_frame.pack(pady=20, fill='both', expand=True)
 
-        self.task_frame = ttk.Frame(self.root, padding=(10, 10), relief=tk.RAISED, style="TaskFrame.TFrame")
-        self.task_frame.pack(pady=20, fill=tk.BOTH, expand=True)
+        title_label = ttk.Label(self.task_frame, text="QUẢN LÝ CÔNG VIỆC", font=("Helvetica", 16))
+        title_label.pack(pady=(0, 20))
 
-        self.main_frame = ttk.Frame(self.task_frame)
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        button_frame = ttk.Frame(self.task_frame)
+        button_frame.pack(pady=10)
 
-        self.task_list_frame = ttk.Frame(self.main_frame)
-        self.task_list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.add_task_button = ttk.Button(button_frame, text="Thêm công việc", command=self.show_add_task_form)
+        self.add_task_button.grid(row=0, column=0, padx=5)
 
-        self.task_listbox = tk.Listbox(self.task_list_frame, width=50, height=10, bg="#ffffff", font=("Arial", 12))
-        self.task_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.update_task_button = ttk.Button(button_frame, text="Sửa công việc", command=self.show_update_task_form)
+        self.update_task_button.grid(row=0, column=1, padx=5)
+
+        self.delete_task_button = ttk.Button(button_frame, text="Xóa công việc", command=self.delete_task)
+        self.delete_task_button.grid(row=0, column=2, padx=5)
+
+        self.detail_task_button = ttk.Button(button_frame, text="Chi tiết công việc", command=self.show_task_details)
+        self.detail_task_button.grid(row=0, column=3, padx=5)
+
+        self.task_list_frame = ttk.Frame(self.task_frame)
+        self.task_list_frame.pack(pady=10, fill='both', expand=True)
+
+        self.task_listbox = tk.Listbox(self.task_list_frame, width=60, height=12, font=self.custom_font, bg="#f9f9f9",
+                                       selectbackground="#d0e0f0")
+        self.task_listbox.pack(side=tk.LEFT, fill='both', expand=True)
 
         self.scrollbar = ttk.Scrollbar(self.task_list_frame, orient=tk.VERTICAL, command=self.task_listbox.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.task_listbox['yscrollcommand'] = self.scrollbar.set
-
-        self.button_frame = ttk.Frame(self.main_frame)
-        self.button_frame.pack(side=tk.RIGHT, fill=tk.Y)
-
-        self.add_task_button = ttk.Button(self.button_frame, text="Thêm task", command=self.show_add_task_form)
-        self.add_task_button.pack(pady=5, padx=5)
-
-        self.update_task_button = ttk.Button(self.button_frame, text="Sửa task", command=self.show_update_task_form)
-        self.update_task_button.pack(pady=5, padx=5)
-
-        self.delete_task_button = ttk.Button(self.button_frame, text="Xóa task", command=self.delete_task)
-        self.delete_task_button.pack(pady=5, padx=5)
-
-        self.detail_task_button = ttk.Button(self.button_frame, text="Chi tiết task", command=self.show_task_details)
-        self.detail_task_button.pack(pady=5, padx=5)
 
         self.load_tasks()
 
@@ -66,97 +69,103 @@ class TaskView(tk.Frame):
 
     def show_add_task_form(self):
         add_task_window = tk.Toplevel(self.root)
-        add_task_window.title("Thêm Task")
-        add_task_window.geometry("400x400")
+        add_task_window.title("Thêm Công Việc")
+        self.util.center_window(add_task_window, 400, 300)
+        add_task_window.geometry("450x500")
         add_task_window.configure(bg="#f0f0f0")
+        add_task_window.resizable(False, False)
 
-        label_font = ("Arial", 10)
+        main_frame = ttk.Frame(add_task_window, padding="20 20 20 20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(add_task_window, text="Chọn dự án:", font=label_font).grid(row=0, column=0, sticky=tk.W)
-        self.project_combobox = ttk.Combobox(add_task_window)
-        self.project_combobox.grid(row=0, column=1)
-        self.load_projects_combobox()
-        self.project_combobox.config(state='readonly')
+        ttk.Label(main_frame, text="Thêm Công Việc Mới", font=("Helvetica", 16, "bold")).grid(row=0, column=0,
+                                                                                              columnspan=2,
+                                                                                              pady=(0, 20))
 
-        ttk.Label(add_task_window, text="Tên task:", font=label_font).grid(row=1, column=0, sticky=tk.W)
-        task_name_entry = ttk.Entry(add_task_window)
-        task_name_entry.grid(row=1, column=1)
+        fields = [
+            ("Chọn dự án:", ttk.Combobox(main_frame, state='readonly')),
+            ("Tên công việc:", ttk.Entry(main_frame)),
+            ("Mô tả:", tk.Text(main_frame, height=5, width=40)),
+            ("Trạng thái:", ttk.Combobox(main_frame, values=STATUSES, state='readonly')),
+            ("Ngày bắt đầu:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
+                                        date_pattern='yyyy-mm-dd', state='readonly')),
+            ("Ngày kết thúc:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
+                                         date_pattern='yyyy-mm-dd', state='readonly')),
+            ("Chọn nhân viên:", ttk.Combobox(main_frame, state='readonly'))
+        ]
 
-        ttk.Label(add_task_window, text="Mô tả:", font=label_font).grid(row=2, column=0, sticky=tk.W)
-        task_desc_entry = ttk.Entry(add_task_window)
-        task_desc_entry.grid(row=2, column=1)
+        for i, (label, widget) in enumerate(fields):
+            ttk.Label(main_frame, text=label).grid(row=i + 1, column=0, sticky=tk.W, pady=5)
+            widget.grid(row=i + 1, column=1, sticky=tk.EW, pady=5)
 
-        ttk.Label(add_task_window, text="Trạng thái:", font=label_font).grid(row=3, column=0, sticky=tk.W)
-        task_status_combobox = ttk.Combobox(add_task_window, values=TASK_STATUSES)
-        task_status_combobox.grid(row=3, column=1)
+        self.load_projects_combobox(fields[0][1])
+        self.load_employees_combobox(fields[6][1])
 
-        ttk.Label(add_task_window, text="Ngày bắt đầu:", font=label_font).grid(row=4, column=0, sticky=tk.W)
-        task_start_date_entry = DateEntry(add_task_window, width=12, background='darkblue',
-                                          foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-        task_start_date_entry.grid(row=4, column=1)
+        add_button = ttk.Button(main_frame, text="Thêm", command=lambda: self.add_task(
+            fields[1][1].get(), fields[2][1].get(), fields[3][1].get(),
+            fields[4][1].get(), fields[5][1].get(), fields[0][1].current(),
+            fields[6][1].current(), add_task_window
+        ))
+        add_button.grid(row=len(fields) + 1, column=0, columnspan=2, pady=(20, 0))
 
-        ttk.Label(add_task_window, text="Ngày kết thúc:", font=label_font).grid(row=5, column=0, sticky=tk.W)
-        task_end_date_entry = DateEntry(add_task_window, width=12, background='darkblue',
-                                        foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-        task_end_date_entry.grid(row=5, column=1)
+        for child in main_frame.winfo_children():
+            child.grid_configure(padx=5)
 
-        ttk.Label(add_task_window, text="Chọn nhân viên:", font=label_font).grid(row=6, column=0, sticky=tk.W)
-        self.employee_combobox = ttk.Combobox(add_task_window)
-        self.employee_combobox.grid(row=6, column=1)
-        self.load_employees_combobox()
-        self.employee_combobox.config(state='readonly')
-
-        add_button = ttk.Button(add_task_window, text="Thêm",
-                                command=lambda: self.add_task(task_name_entry.get(), task_desc_entry.get(),
-                                                              task_status_combobox.get(), task_start_date_entry.get(),
-                                                              task_end_date_entry.get(),
-                                                              self.project_combobox.current(), add_task_window))
-        add_button.grid(row=7, columnspan=2, pady=10, padx=5)
-        add_button.configure(style='Accent.TButton')
-        add_button.bind("<Enter>", lambda e: self.add_tooltip(add_button, "Thêm task vào dự án"))
+        main_frame.grid_columnconfigure(1, weight=1)
 
     def show_task_details(self):
+        detail_window = tk.Toplevel(self.root)
+        detail_window.title("Chi tiết Công Việc")
+        self.util.center_window(detail_window, 400, 300)
+        detail_window.geometry("400x400")
+        detail_window.configure(bg="#f0f0f0")
+        detail_window.resizable(False, False)
         selected_index = self.task_listbox.curselection()
-        if selected_index:
-            task = self.task_controller.get_tasks_by_project(self.project_controller.get_projects()[0][0])[
-                selected_index[0]]
+        if not selected_index:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn công việc để xem chi tiết!")
+            return
 
-            detail_window = tk.Toplevel(self.root)
-            detail_window.title("Chi tiết Task")
-            detail_window.geometry("400x300")
+        task = self.task_controller.get_tasks_by_project(self.project_controller.get_projects()[0][0])[
+            selected_index[0]]
 
-            ttk.Label(detail_window, text="Tên task:").grid(row=0, column=0, sticky=tk.W)
-            ttk.Label(detail_window, text=task[2]).grid(row=0, column=1)
+        main_frame = ttk.Frame(detail_window, padding="20 20 20 20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-            ttk.Label(detail_window, text="Mô tả:").grid(row=1, column=0, sticky=tk.W)
-            ttk.Label(detail_window, text=task[3]).grid(row=1, column=1)
+        ttk.Label(main_frame, text="Chi Tiết Công Việc", font=("Helvetica", 16, "bold")).grid(row=0, column=0,
+                                                                                              columnspan=2,
+                                                                                              pady=(0, 20))
 
-            ttk.Label(detail_window, text="Trạng thái:").grid(row=2, column=0, sticky=tk.W)
-            ttk.Label(detail_window, text=task[4]).grid(row=2, column=1)
+        fields = [
+            ("Tên công việc:", task[2]),
+            ("Mô tả:", task[3]),
+            ("Trạng thái:", task[4]),
+            ("Ngày bắt đầu:", task[5]),
+            ("Ngày kết thúc:", task[6]),
+            ("Nhân viên phụ trách:", self.employee_controller.get_employee_name(task[7]) if task[7] else "Không có")
+        ]
 
-            ttk.Label(detail_window, text="Ngày bắt đầu:").grid(row=3, column=0, sticky=tk.W)
-            ttk.Label(detail_window, text=task[5]).grid(row=3, column=1)
+        for i, (label, value) in enumerate(fields):
+            ttk.Label(main_frame, text=label).grid(row=i + 1, column=0, sticky=tk.W, pady=5)
+            ttk.Label(main_frame, text=value).grid(row=i + 1, column=1, sticky=tk.W, pady=5)
 
-            ttk.Label(detail_window, text="Ngày kết thúc:").grid(row=4, column=0, sticky=tk.W)
-            ttk.Label(detail_window, text=task[6]).grid(row=4, column=1)
+        ttk.Button(main_frame, text="Đóng", command=detail_window.destroy).grid(row=len(fields) + 1, column=0,
+                                                                                columnspan=2, pady=(20, 0))
 
-            ttk.Label(detail_window, text="Nhân viên phụ trách:").grid(row=5, column=0, sticky=tk.W)
-            employee_id = task[7]
-            employee_name = self.employee_controller.get_employee_name(employee_id) if employee_id else "Không có"
-            ttk.Label(detail_window, text=employee_name).grid(row=5, column=1)
+        for child in main_frame.winfo_children():
+            child.grid_configure(padx=5)
 
-            ttk.Button(detail_window, text="Đóng", command=detail_window.destroy).grid(row=6, columnspan=2, pady=10)
+        main_frame.grid_columnconfigure(1, weight=1)
 
-    def load_projects_combobox(self):
+    def load_projects_combobox(self, combobox):
         projects = self.project_controller.get_projects()
-        self.project_combobox['values'] = [project[1] for project in projects]
+        combobox['values'] = [project[1] for project in projects]
 
-    def load_employees_combobox(self):
+    def load_employees_combobox(self, combobox):
         employees = self.employee_controller.get_employees()
-        self.employee_combobox['values'] = [f"{employee[1]} - {employee[2]}" for employee in employees]
+        combobox['values'] = [f"{employee[1]} - {employee[2]}" for employee in employees]
 
-    def add_task(self, name, description, status, start_date, end_date, project_index, window):
-        selected_project_index = self.project_combobox.current()
+    def add_task(self, name, description, status, start_date, end_date, project_index, employee_index, window):
+        selected_project_index = project_index
         if selected_project_index < 0:
             messagebox.showwarning("Cảnh báo", "Vui lòng chọn một dự án trước!")
             return
@@ -170,9 +179,9 @@ class TaskView(tk.Frame):
         try:
             datetime.strptime(start_date, '%Y-%m-%d')
             datetime.strptime(end_date, '%Y-%m-%d')
-            employee_index = self.employee_combobox.current()
-            employee_id = self.employee_controller.get_employees()[employee_index][0] if employee_index >= 0 else None
-            self.task_controller.add_task(project_id, name, description, status, start_date, end_date, employee_id)
+            employee_index = self.employee_controller.get_employees()[employee_index][
+                0] if employee_index >= 0 else None
+            self.task_controller.add_task(project_id, name, description, status, start_date, end_date, employee_index)
             self.load_tasks()
             window.destroy()
         except ValueError:
@@ -186,57 +195,65 @@ class TaskView(tk.Frame):
             self.task_controller.delete_task(task_id)
             self.load_tasks()
         else:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn task để xóa!")
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn công việc để xóa!")
 
     def show_update_task_form(self):
+        update_task_window = tk.Toplevel(self.root)
+        update_task_window.title("Sửa Công Việc")
+        self.util.center_window(update_task_window, 400, 300)
+        update_task_window.geometry("450x500")
+        update_task_window.configure(bg="#f0f0f0")
+        update_task_window.resizable(False, False)
         selected_index = self.task_listbox.curselection()
-        if selected_index:
-            task = self.task_controller.get_tasks_by_project(self.project_controller.get_projects()[0][0])[
-                selected_index[0]]
-            update_task_window = tk.Toplevel(self.root)
-            update_task_window.title("Sửa Task")
-            update_task_window.geometry("400x400")
+        if not selected_index:
+            messagebox.showwarning("Cảnh báo", "Vui lòng chọn công việc để cập nhật!")
+            return
 
-            ttk.Label(update_task_window, text="Tên task:").grid(row=0, column=0, sticky=tk.W)
-            task_name_entry = ttk.Entry(update_task_window)
-            task_name_entry.insert(0, task[2])
-            task_name_entry.grid(row=0, column=1)
+        task = self.task_controller.get_tasks_by_project(self.project_controller.get_projects()[0][0])[
+            selected_index[0]]
 
-            ttk.Label(update_task_window, text="Mô tả:").grid(row=1, column=0, sticky=tk.W)
-            task_desc_entry = ttk.Entry(update_task_window)
-            task_desc_entry.insert(0, task[3])
-            task_desc_entry.grid(row=1, column=1)
+        main_frame = ttk.Frame(update_task_window, padding="20 20 20 20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-            ttk.Label(update_task_window, text="Trạng thái:").grid(row=2, column=0, sticky=tk.W)
-            status_combobox = ttk.Combobox(update_task_window, values=TASK_STATUSES)
-            status_combobox.set(task[4])
-            status_combobox.grid(row=2, column=1)
+        ttk.Label(main_frame, text="Cập Nhật Công Việc", font=("Helvetica", 16, "bold")).grid(row=0, column=0,
+                                                                                              columnspan=2,
+                                                                                              pady=(0, 20))
 
-            ttk.Label(update_task_window, text="Ngày bắt đầu:").grid(row=3, column=0, sticky=tk.W)
-            start_date_entry = DateEntry(update_task_window, width=12, background='darkblue',
-                                         foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-            start_date_entry.set_date(task[5])
-            start_date_entry.grid(row=3, column=1)
+        fields = [
+            ("Tên công việc:", ttk.Entry(main_frame)),
+            ("Mô tả:", tk.Text(main_frame, height=5, width=40)),
+            ("Trạng thái:", ttk.Combobox(main_frame, values=STATUSES, state='readonly')),
+            ("Ngày bắt đầu:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
+                                        date_pattern='yyyy-mm-dd', state='readonly')),
+            ("Ngày kết thúc:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
+                                         date_pattern='yyyy-mm-dd', state='readonly')),
+            ("Chọn nhân viên:", ttk.Combobox(main_frame, state='readonly'))
+        ]
 
-            ttk.Label(update_task_window, text="Ngày kết thúc:").grid(row=4, column=0, sticky=tk.W)
-            end_date_entry = DateEntry(update_task_window, width=12, background='darkblue',
-                                       foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
-            end_date_entry.set_date(task[6])
-            end_date_entry.grid(row=4, column=1)
+        for i, (label, widget) in enumerate(fields):
+            ttk.Label(main_frame, text=label).grid(row=i + 1, column=0, sticky=tk.W, pady=5)
+            widget.grid(row=i + 1, column=1, sticky=tk.EW, pady=5)
 
-            ttk.Label(update_task_window, text="Chọn nhân viên:").grid(row=5, column=0, sticky=tk.W)
-            self.employee_combobox = ttk.Combobox(update_task_window)
-            self.employee_combobox.grid(row=5, column=1)
-            self.load_employees_combobox()
-            self.employee_combobox.set(task[7])
-            self.employee_combobox.config(state='readonly')
+        fields[0][1].insert(0, task[2])
+        fields[1][1].insert(tk.END, task[3])
+        fields[2][1].set(task[4])
+        fields[3][1].set_date(task[5])
+        fields[4][1].set_date(task[6])
+        self.load_employees_combobox(fields[5][1])
+        if task[7]:
+            employee_name = self.employee_controller.get_employee_name(task[7])
+            fields[5][1].set(employee_name)
 
-            update_button = ttk.Button(update_task_window, text="Cập nhật",
-                                       command=lambda: self.update_task(task[0], task_name_entry.get(),
-                                                                        task_desc_entry.get(), status_combobox.get(),
-                                                                        start_date_entry.get(), end_date_entry.get(),
-                                                                        self.employee_combobox.current(), update_task_window))
-            update_button.grid(row=6, columnspan=2, pady=10)
+        update_button = ttk.Button(main_frame, text="Cập nhật", command=lambda: self.update_task(
+            task[0], fields[0][1].get(), fields[1][1].get(), fields[2][1].get(),
+            fields[3][1].get(), fields[4][1].get(), fields[5][1].current(), update_task_window
+        ))
+        update_button.grid(row=len(fields) + 1, column=0, columnspan=2, pady=(20, 0))
+
+        for child in main_frame.winfo_children():
+            child.grid_configure(padx=5)
+
+        main_frame.grid_columnconfigure(1, weight=1)
 
     def update_task(self, task_id, name, description, status, start_date, end_date, employee_index, window):
         if name and start_date and end_date:
@@ -244,7 +261,8 @@ class TaskView(tk.Frame):
                 datetime.strptime(start_date, '%Y-%m-%d')
                 datetime.strptime(end_date, '%Y-%m-%d')
                 project_id = self.project_controller.get_projects()[0][0]
-                employee_id = self.employee_controller.get_employees()[employee_index][0] if employee_index >= 0 else None
+                employee_id = self.employee_controller.get_employees()[employee_index][
+                    0] if employee_index >= 0 else None
                 self.task_controller.update_task(task_id, project_id, name, description, status, start_date, end_date,
                                                  employee_id)
                 self.load_tasks()
