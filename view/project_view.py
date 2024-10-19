@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 from tkinter import font as tkFont
 from tkcalendar import DateEntry
 from datetime import datetime
+import pandas as pd
+import tkinter.filedialog as filedialog
 
 from config.util import Util
 from controllers.ProjectController import ProjectController
@@ -51,6 +53,16 @@ class ProjectView(tk.Frame):
         self.scrollbar = ttk.Scrollbar(self.project_list_frame, orient=tk.VERTICAL, command=self.project_listbox.yview)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.project_listbox['yscrollcommand'] = self.scrollbar.set
+
+        button_frame = ttk.Frame(self.project_frame)
+        button_frame.pack(pady=10)
+
+        self.export_project_button = ttk.Button(button_frame, text="Xuất Excel", command=self.export_to_excel)
+        self.export_project_button.grid(row=0, column=0, padx=5)
+
+        self.import_project_button = ttk.Button(button_frame, text="Nhập Excel",
+                                                command=self.import_from_excel)
+        self.import_project_button.grid(row=0, column=1, padx=5)
 
         self.load_projects()
 
@@ -128,7 +140,8 @@ class ProjectView(tk.Frame):
             widget.grid(row=i + 1, column=1, sticky=tk.EW, pady=5)
 
         add_button = ttk.Button(main_frame, text="Thêm", command=lambda: self.add_project(
-            fields[0][1].get(), fields[1][1].get(), fields[2][1].get(), fields[3][1].get(), add_project_window
+            fields[0][1].get(), fields[1][1].get("1.0", tk.END),
+            fields[2][1].get(), fields[3][1].get(), add_project_window
         ))
         add_button.grid(row=len(fields) + 1, column=0, columnspan=2, pady=(20, 0))
 
@@ -154,6 +167,7 @@ class ProjectView(tk.Frame):
         selected_index = self.project_listbox.curselection()
         if selected_index:
             project_id = self.project_controller.get_projects()[selected_index[0]][0]
+            self.project_controller.delete_tasks_by_project_id(project_id)
             self.project_controller.delete_project(project_id)
             self.load_projects()
         else:
@@ -200,8 +214,8 @@ class ProjectView(tk.Frame):
                 widget.set_date(project[i + 1])
 
         update_button = ttk.Button(main_frame, text="Cập nhật", command=lambda: self.update_project(
-            project[0], fields[0][1].get(), fields[1][1].get().strip(), fields[2][1].get(),
-            fields[3][1].get(), update_project_window
+            project[0], fields[0][1].get(), fields[1][1].get("1.0", tk.END).strip(),
+            fields[2][1].get(), fields[3][1].get(), update_project_window
         ))
         update_button.grid(row=len(fields) + 1, column=0, columnspan=2, pady=(20, 0))
 
@@ -222,3 +236,54 @@ class ProjectView(tk.Frame):
                 messagebox.showwarning("Cảnh báo", "Ngày tháng không hợp lệ!")
         else:
             messagebox.showwarning("Cảnh báo", "Vui lòng điền đầy đủ thông tin!")
+
+    def export_to_excel(self):
+        projects = self.project_controller.get_projects()
+        if not projects:
+            messagebox.showwarning("Cảnh báo", "Không có dự án để xuất!")
+            return
+
+        data = {
+            "Tên dự án": [project[1] for project in projects],
+            "Mô tả": [project[2] for project in projects],
+            "Ngày bắt đầu": [project[3] for project in projects],
+            "Ngày kết thúc": [project[4] for project in projects],
+        }
+
+        df = pd.DataFrame(data)
+
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", 
+                                                   filetypes=[("Excel files", "*.xlsx;*.xls")])
+        if file_path:
+            df.to_excel(file_path, index=False)
+            messagebox.showinfo("Thông báo", f"Dữ liệu đã được xuất ra {file_path} thành công!")
+        else:
+            messagebox.showwarning("Cảnh báo", "Không có tệp được chọn để xuất!")
+
+    def import_from_excel(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
+        if not file_path:
+            return
+
+        success = True
+
+        try:
+            df = pd.read_excel(file_path)
+            for index, row in df.iterrows():
+                name = row.get("Tên dự án")
+                description = row.get("Mô tả")
+                start_date = row.get("Ngày bắt đầu")
+                end_date = row.get("Ngày kết thúc")
+
+                if not name or not description or not start_date or not end_date:
+                    messagebox.showwarning("Cảnh báo", f"Cấu trúc file không hợp lệ! Vui lòng kiểm tra lại.")
+                    success = False
+                    continue
+
+                self.project_controller.add_project(name, description, start_date, end_date)
+
+            self.load_projects()
+            if success:
+                messagebox.showinfo("Thông báo", "Dữ liệu đã được nhập thành công!")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi nhập dữ liệu: {str(e)}")

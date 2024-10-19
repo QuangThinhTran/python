@@ -1,8 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from tkinter import font as tkFont
 from tkcalendar import DateEntry
 from datetime import datetime
+import pandas as pd
 
 from config.util import STATUSES, Util
 from controllers.TaskController import TaskController
@@ -58,9 +59,18 @@ class TaskView(tk.Frame):
 
         self.load_tasks()
 
+        bottom_button_frame = ttk.Frame(self.task_frame)
+        bottom_button_frame.pack(pady=10)
+
+        self.export_task_button = ttk.Button(bottom_button_frame, text="Xuất Excel", command=self.export_to_excel)
+        self.export_task_button.grid(row=0, column=0, padx=5)
+
+        self.import_task_button = ttk.Button(bottom_button_frame, text="Nhập Excel", command=self.import_from_excel)
+        self.import_task_button.grid(row=0, column=1, padx=5)
+
     def load_tasks(self):
         self.task_listbox.delete(0, tk.END)
-        projects = self.project_controller.get_projects()
+        projects = self.task_controller.get_all_tasks()
         if projects:
             project_id = projects[0][0]
             tasks = self.task_controller.get_tasks_by_project(project_id)
@@ -102,7 +112,8 @@ class TaskView(tk.Frame):
         self.load_employees_combobox(fields[6][1])
 
         add_button = ttk.Button(main_frame, text="Thêm", command=lambda: self.add_task(
-            fields[1][1].get(), fields[2][1].get(), fields[3][1].get(),
+            fields[1][1].get(), fields[2][1].get("1.0", tk.END),
+            fields[3][1].get(),
             fields[4][1].get(), fields[5][1].get(), fields[0][1].current(),
             fields[6][1].current(), add_task_window
         ))
@@ -225,7 +236,7 @@ class TaskView(tk.Frame):
             ("Trạng thái:", ttk.Combobox(main_frame, values=STATUSES, state='readonly')),
             ("Ngày bắt đầu:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
                                         date_pattern='yyyy-mm-dd', state='readonly')),
-            ("Ngày kết thúc:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
+            ("Ngày kết thc:", DateEntry(main_frame, width=12, background='darkblue', foreground='white', borderwidth=2,
                                          date_pattern='yyyy-mm-dd', state='readonly')),
             ("Chọn nhân viên:", ttk.Combobox(main_frame, state='readonly'))
         ]
@@ -245,7 +256,8 @@ class TaskView(tk.Frame):
             fields[5][1].set(employee_name)
 
         update_button = ttk.Button(main_frame, text="Cập nhật", command=lambda: self.update_task(
-            task[0], fields[0][1].get(), fields[1][1].get(), fields[2][1].get(),
+            task[0], fields[0][1].get(), fields[1][1].get("1.0", tk.END),
+            fields[2][1].get(),
             fields[3][1].get(), fields[4][1].get(), fields[5][1].current(), update_task_window
         ))
         update_button.grid(row=len(fields) + 1, column=0, columnspan=2, pady=(20, 0))
@@ -271,3 +283,56 @@ class TaskView(tk.Frame):
                 messagebox.showwarning("Cảnh báo", "Ngày tháng không hợp lệ!")
         else:
             messagebox.showwarning("Cảnh báo", "Vui lòng điền đầy đủ thông tin!")
+
+    def export_to_excel(self):
+        tasks = self.task_controller.get_all_tasks()
+        if not tasks:
+            messagebox.showwarning("Cảnh báo", "Không có công việc để xuất!")
+            return
+
+        data = {
+            "Tên công việc": [task[2] for task in tasks],
+            "Mô tả": [task[3] for task in tasks],
+            "Trạng thái": [task[4] for task in tasks],
+            "Ngày bắt đầu": [task[5] for task in tasks],
+            "Ngày kết thúc": [task[6] for task in tasks],
+        }
+
+        df = pd.DataFrame(data)
+
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", 
+                                                   filetypes=[("Excel files", "*.xlsx;*.xls")])
+        if file_path:
+            df.to_excel(file_path, index=False)
+            messagebox.showinfo("Thông báo", f"Dữ liệu đã được xuất ra {file_path} thành công!")
+        else:
+            messagebox.showwarning("Cảnh báo", "Không có tệp được chọn để xuất!")
+
+    def import_from_excel(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
+        if not file_path:
+            return
+
+        success = True
+
+        try:
+            df = pd.read_excel(file_path)
+            for index, row in df.iterrows():
+                name = row.get("Tên công việc")
+                description = row.get("Mô tả")
+                status = row.get("Trạng thái")
+                start_date = row.get("Ngày bắt đầu")
+                end_date = row.get("Ngày kết thúc")
+
+                if not name or not description or not status or not start_date or not end_date:
+                    messagebox.showwarning("Cảnh báo", f"Cấu trúc file không hợp lệ! Vui lòng kiểm tra lại.")
+                    success = False
+                    continue
+
+                self.task_controller.add_task(None, name, description, status, start_date, end_date, None)
+
+            self.load_tasks()
+            if success:
+                messagebox.showinfo("Thông báo", "Dữ liệu đã được nhập thành công!")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi nhập dữ liệu: {str(e)}")

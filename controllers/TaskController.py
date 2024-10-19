@@ -26,3 +26,11 @@ class TaskController:
     def get_tasks_by_project(self, project_id):
         self.db.cursor.execute('SELECT * FROM tasks WHERE project_id = ?', (project_id,))
         return self.db.cursor.fetchall()
+
+    def get_task_by_id(self, task_id):
+        self.db.cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+        return self.db.cursor.fetchone()
+
+    def get_all_tasks(self):
+        self.db.cursor.execute('SELECT * FROM tasks')
+        return self.db.cursor.fetchall()

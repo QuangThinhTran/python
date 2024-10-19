@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter import font as tkFont
+import pandas as pd
+from tkinter import filedialog
 
 from config.util import Util
 from controllers.EmployeeController import EmployeeController
@@ -54,6 +56,15 @@ class EmployeeView(tk.Frame):
         self.employee_listbox['yscrollcommand'] = self.scrollbar.set
 
         self.load_employees()
+
+        bottom_button_frame = ttk.Frame(self.employee_frame)
+        bottom_button_frame.pack(pady=10)
+
+        self.export_employee_button = ttk.Button(bottom_button_frame, text="Xuất Excel", command=self.export_to_excel)
+        self.export_employee_button.grid(row=0, column=0, padx=5)
+
+        self.import_employee_button = ttk.Button(bottom_button_frame, text="Nhập Excel", command=self.import_from_excel)
+        self.import_employee_button.grid(row=0, column=1, padx=5)
 
     def load_employees(self):
         employees = self.employee_controller.get_employees()
@@ -215,10 +226,59 @@ class EmployeeView(tk.Frame):
 
     def create_role_listbox(self, parent):
         role_listbox = ttk.Combobox(parent, values=["Quản lý", "Nhân viên"], state="readonly")
-        role_listbox.set("Nhân viên")  # Set default value
+        role_listbox.set("Nhân viên")
         return role_listbox
 
     def validate_email(self, email):
         import re
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         return re.match(pattern, email) is not None
+
+    def export_to_excel(self):
+        employees = self.employee_controller.get_employees()
+        if not employees:
+            messagebox.showwarning("Cảnh báo", "Không có nhân viên để xuất!")
+            return
+
+        data = {
+            "Tên nhân viên": [employee[1] for employee in employees],
+            "Email": [employee[2] for employee in employees],
+            "Vai trò": [employee[3] for employee in employees],
+        }
+
+        df = pd.DataFrame(data)
+
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", 
+                                                   filetypes=[("Excel files", "*.xlsx;*.xls")])
+        if file_path:
+            df.to_excel(file_path, index=False)
+            messagebox.showinfo("Thông báo", f"Dữ liệu đã được xuất ra {file_path} thành công!")
+        else:
+            messagebox.showwarning("Cảnh báo", "Không có tệp được chọn để xuất!")
+
+    def import_from_excel(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
+        if not file_path:
+            return
+
+        success = True
+
+        try:
+            df = pd.read_excel(file_path)
+            for index, row in df.iterrows():
+                name = row.get("Tên nhân viên")
+                email = row.get("Email")
+                role = row.get("Vai trò")
+
+                if not name or not email or not role:
+                    messagebox.showwarning("Cảnh báo", f"Cấu trúc file không hợp lệ! Vui lòng kiểm tra lại.")
+                    success = False
+                    continue
+
+                self.employee_controller.add_employee(name, email, role)
+
+            self.load_employees()
+            if success:
+                messagebox.showinfo("Thông báo", "Dữ liệu đã được nhập thành công!")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi nhập dữ liệu: {str(e)}")

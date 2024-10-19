@@ -35,7 +35,7 @@ class Database:
                 start_date TEXT,
                 end_date TEXT,
                 employee_id INTEGER,
-                FOREIGN KEY (project_id) REFERENCES projects (id),
+                FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
                 FOREIGN KEY (employee_id) REFERENCES employees (id)
             )
         ''')

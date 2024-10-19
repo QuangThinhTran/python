@@ -35,3 +35,7 @@ class ProjectController:
             WHERE t.project_id = (SELECT id FROM projects WHERE name = ?)
         ''', (project_name,))
         return self.db.cursor.fetchall()
+
+    def delete_tasks_by_project_id(self, project_id):
+        self.db.cursor.execute('DELETE FROM tasks WHERE project_id = ?', (project_id,))
+        self.db.connection.commit()
